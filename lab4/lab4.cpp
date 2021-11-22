@@ -13,6 +13,7 @@
 struct SomeStruct;
 struct ValueNode;
 struct OperatorNode;
+struct ExpressionArray;
 class Expression;
 class MyList;
 class MyStringBuilder;
@@ -20,7 +21,6 @@ class MyStringBuilder;
 void GetInput(MyList& vector);
 bool IsNumber(const char str[], int length);
 char* GetSubstring(char text[], int start, int size);
-OperatorNode FindOperator(char str[], int& index, int length);
 double GetNumFromString(const char str[]);
 
 struct SomeStruct
@@ -68,19 +68,28 @@ struct SomeStruct
             }
             if (isWord && (str[index] == ' ' || str[index] == '+' || str[index] == '-' || str[index] == '*' || str[index] == '/' || str[index] == '=' || str[index] == '%'))
             {
-                wordLength = index - startWord;
-                char* tempStr = GetSubstring(str, startWord, wordLength);
-                if (IsNumber(tempStr, wordLength))
-                {
-                    this->Set(tempStr, wordLength, GetNumFromString(tempStr));
-                }
-                else
-                {
-                    this->Set(tempStr, wordLength);
-                }
+                TakeValue(str, index, startWord);
+                isWord = false;
                 break;
             }
             index++;
+        }
+        if (isWord)
+        {
+            TakeValue(str, index, startWord);
+        }
+    }
+    void TakeValue(char* str, int index, int startWord)
+    {
+        int wordLength = index - startWord;
+        char* tempStr = GetSubstring(str, startWord, wordLength);
+        if (IsNumber(tempStr, wordLength))
+        {
+            this->Set(tempStr, wordLength, GetNumFromString(tempStr));
+        }
+        else
+        {
+            this->Set(tempStr, wordLength);
         }
     }
 };
@@ -92,7 +101,6 @@ struct ValueNode
     SomeStruct *value;
     OperatorNode *operBefore;
     OperatorNode *operAfter;
-    //OperatorNode tail; 
 };
 
 struct OperatorNode
@@ -100,23 +108,62 @@ struct OperatorNode
     ValueNode * valueBefore;
     ValueNode * valueAfter;
     char* oper;
+    int length = 0;
     OperatorNode()
     {  };
+    ~OperatorNode()
+    {
+        delete[] oper;
+    }
+    void FindOperator(char str[], int& index, int length)
+    {
+        while (index<length)
+        {
+            if (str[index] == '+' || str[index] == '-' || str[index] == '*' || str[index] == '/' || str[index] == '=' || str[index] == '%')
+            {
+                if (str[index + 1] == '=')
+                {
+                    this->oper = GetSubstring(str, index, 2);
+                    index += 2;
+                    this->length = 2;
+                    break;
+                }
+                this->oper = GetSubstring(str, index, 1);
+                this->length = 1;
+                break;
+            }
+            else if (str[index == ' '])
+            {
+                index++;
+                continue;
+            }
+        }
+    }
 };
 
 class Expression
 {
-    int length = 0;
+    
+    
 public:
-    ValueNode * valueHead;
-    ValueNode * valueTail;
-    void Add(SomeStruct &val, OperatorNode &oper)
+    int length = 0;
+    char* expressionAsString;
+    Expression(char str[],int length)
     {
-        ValueNode temp;
-        temp.value = &val;
+        expressionAsString = new char[length+1];
+        for (int i = 0; i < length; i++)
+        {
+            expressionAsString[i] = str[i];
+        }
+        expressionAsString[length] = '\0';
+    }
+    ValueNode * valueHead = new ValueNode();
+    ValueNode * valueTail;
+    void Add(SomeStruct *val, OperatorNode &oper)
+    {
         if (length == 0)
         {
-            this->valueHead = &temp;
+            this->valueHead->value = val;
             valueHead->isHead = true;
             valueHead->operAfter = &oper;
             oper.valueBefore = valueHead;
@@ -126,25 +173,45 @@ public:
         }
         else
         {
-            temp.operBefore = valueTail->operAfter;
+            ValueNode *temp = new ValueNode();
+            temp->value = val;
+            temp->operBefore = valueTail->operAfter;
             this->valueTail->isTail = false;
-            this->valueTail->operAfter->valueAfter = &temp;
-            temp.operAfter = &oper;
-            oper.valueBefore = &temp;
-            valueTail = &temp;
+            this->valueTail->operAfter->valueAfter = temp;
+            temp->operAfter = &oper;
+            oper.valueBefore = temp;
+            this->valueTail = temp;
             this->valueTail->isTail = true;
             length++;
         }
     }
+    void Add(SomeStruct* val)
+    {
+        ValueNode* temp = new ValueNode();
+        temp->value = val;
+        temp->operBefore = valueTail->operAfter;
+        this->valueTail->isTail = false;
+        this->valueTail->operAfter->valueAfter = temp;
+        this->valueTail = temp;
+        this->valueTail->isTail = true;
+        length++;
+    }
     void MakeExpression(char str[], int length)
     {
-        SomeStruct variable;
-        OperatorNode oper;
         for (int i = 0; i < length; i++)
         {
-            variable.findValue(str, i, length);
-            oper = FindOperator(str, i, length);
-            this->Add(variable, oper);
+            SomeStruct* variable = new SomeStruct();
+            OperatorNode* oper = new OperatorNode();
+            variable->findValue(str, i, length);
+            oper->FindOperator(str, i, length);
+            if (oper->length > 0)
+            {
+                this->Add(variable, *oper);
+            }
+            else
+            {
+                this->Add(variable);
+            }
         }
     }
 private:
@@ -269,6 +336,35 @@ private:
         return list;
     }
 };
+struct ExpressionArray
+{
+    Expression** arr;
+    int length;
+    ExpressionArray(MyList list)
+    {
+        this->length = list.Length();
+        arr = new Expression*[length];
+        for (int i = 0; i < length; i++)
+        {
+            Expression* ex = new Expression(list[i], list.ElementLength(i));
+            ex->MakeExpression(list[i], list.ElementLength(0));
+            arr[i] = ex;
+        }
+    }
+    void GiveMeAnAnswer()
+    {
+        for (int i = 0; i < this->length; i++)
+        {
+            while (arr[i]->valueHead && arr[i])
+        }
+
+    }
+    void Scale(Expression* ex)
+    {
+
+    }
+
+};
 
 int main()
 {
@@ -277,48 +373,21 @@ int main()
 
     MyList arr;
     GetInput(arr);
-    Expression ex;
-    ex.MakeExpression(arr[0], arr.ElementLength(0));
+    ExpressionArray *exArr = new ExpressionArray(arr);
+
 
 
 
     for (int i = 0; i < arr.Length(); i++)
     {
-        for( int j = 0;*(arr[i] + j) != '\0';j++)
-        {
-            std::cout << *(arr[i] + j);
-        }
-        std::cout << std::endl;
+        std::cout << exArr->arr[i]->expressionAsString << std::endl;
     }
 
 }
 
   
 
-OperatorNode FindOperator(char str[], int& index, int length)
-{
-    OperatorNode oper;
-    while (true)
-    {
-        if (str[index] == '+' || str[index] == '-' || str[index] == '*' || str[index] == '/' || str[index] == '=' || str[index] == '%')
-        {
-            if (str[index + 1] == '=')
-            {
-                oper.oper = GetSubstring(str, index, 2);
-                index += 2;
-                return oper;
-            }
-            oper.oper = GetSubstring(str, index, 1);
-            index++;
-            return oper;
-        }
-        else if (str[index == ' '])
-        {
-            index++;
-            continue;
-        }
-    }
-}
+
 
 char* GetSubstring(char text[], int start, int size)
 {
