@@ -1,16 +1,18 @@
-﻿//Разработать программу - калькулятор, которая способна сохранять любое количество именованных пользовательских переменных и использовать их для расчета простейших алгебраических выражений.Предусмотреть возможность определения любой из переменных простейшим алгебраическим выражением.Например:
+﻿//TODO:
+//Разработать программу - калькулятор, которая способна сохранять любое количество именованных пользовательских переменных и использовать их для расчета простейших алгебраических выражений.Предусмотреть возможность определения любой из переменных простейшим алгебраическим выражением.Например:
 //exrp = first - second + third
 //someRes = expr + 10
 //first = 10
 //Предусмотреть возможность вывода любой переменной на экран.Если есть выражения, переменные которых не определены, то пользователю выводится это выражение и предлагается ввести все необходимые значения переменных с консоли.
- 
+
+//ИДБ-21-12 Порядин Вячеслав Сергеевич. 
 
 #include <iostream>
 #include <sstream>
 
 
 
-struct SomeStruct;
+struct ValueStruct;
 struct ValueNode;
 struct OperatorNode;
 struct ExpressionArray;
@@ -22,23 +24,28 @@ void GetInput(MyList& vector);
 bool IsNumber(const char str[], int length);
 char* GetSubstring(char text[], int start, int size);
 double GetNumFromString(const char str[]);
+double GetNumber(const char s[]);
+bool Compare(const char st1[], int len1, const char st2[], int len2);
 
-struct SomeStruct
+struct ValueStruct
 {
+    int openBrackets = 0;
+    int closeBrackets = 0;
     bool hasValue = false;
+    bool isMinus = false;
     char* variableName;
     int nameLength;
     int numberOfUsing = 0; //количество использований
     double value;
-    SomeStruct()
+    ValueStruct()
     {   }
-    SomeStruct(char name[], int nameLength, double value)
+    ValueStruct(char name[], int nameLength, double value)
     {
         this->variableName = name;
         this->nameLength = nameLength;
         this->value = value;
     }
-    ~SomeStruct()
+    ~ValueStruct()
     {
         delete[] variableName;
     }
@@ -58,6 +65,14 @@ struct SomeStruct
     void findValue(char str[], int& index, int length)
     {
         int startWord = 0, wordLength = 0;
+        while ((str[index] == '(' || str[index] == ' ' )&& index < length)
+        {
+            if (str[index] == '(')
+            {
+                this->openBrackets++;
+            }
+            index++;
+        }
         bool isWord = false;
         while (index < length)
         {
@@ -66,7 +81,7 @@ struct SomeStruct
                 startWord = index;
                 isWord = true;
             }
-            if (isWord && (str[index] == ' ' || str[index] == '+' || str[index] == '-' || str[index] == '*' || str[index] == '/' || str[index] == '=' || str[index] == '%'))
+            if (isWord && (str[index] == ' ' || str[index] == '+' || str[index] == '-' || str[index] == '*' || str[index] == '/' || str[index] == '=' || str[index] == '%'|| str[index] == '('|| str[index] == ')'))
             {
                 TakeValue(str, index, startWord);
                 isWord = false;
@@ -77,6 +92,14 @@ struct SomeStruct
         if (isWord)
         {
             TakeValue(str, index, startWord);
+        }
+        while ((str[index] == ')' || str[index] == ' ') && index < length)
+        {
+            if (str[index] == ')')
+            {
+                this->closeBrackets++;
+            }
+            index++;
         }
     }
     void TakeValue(char* str, int index, int startWord)
@@ -98,11 +121,10 @@ struct ValueNode
 {
     bool isHead = false;
     bool isTail = false;
-    SomeStruct *value;
+    ValueStruct *value;
     OperatorNode *operBefore;
     OperatorNode *operAfter;
 };
-
 struct OperatorNode
 {
     ValueNode * valueBefore;
@@ -139,8 +161,22 @@ struct OperatorNode
             }
         }
     }
+    bool compair(const char str[], int length)
+    {
+        if (this->length == length)
+        {
+            for (int i = 0; i < length; i++)
+            {
+                if (str[i] != this->oper[i])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
 };
-
 class Expression
 {
     
@@ -148,18 +184,18 @@ class Expression
 public:
     int length = 0;
     char* expressionAsString;
-    Expression(char str[],int length)
+    Expression(char str[],int strLength)
     {
-        expressionAsString = new char[length+1];
-        for (int i = 0; i < length; i++)
+        expressionAsString = new char[strLength+1];
+        for (int i = 0; i < strLength; i++)
         {
             expressionAsString[i] = str[i];
         }
-        expressionAsString[length] = '\0';
+        expressionAsString[strLength] = '\0';
     }
     ValueNode * valueHead = new ValueNode();
     ValueNode * valueTail;
-    void Add(SomeStruct *val, OperatorNode &oper)
+    void Add(ValueStruct *val, OperatorNode &oper)
     {
         if (length == 0)
         {
@@ -184,23 +220,52 @@ public:
             this->valueTail->isTail = true;
             length++;
         }
+        if (this->length >=3 && this->valueTail->operBefore->compair("-", 1) && this->valueTail->operBefore->valueBefore->value->nameLength == 0)
+        {
+            this->valueTail->operBefore = this->valueTail->operBefore->valueBefore->operBefore;
+            delete this->valueTail->operBefore->valueAfter->operAfter;
+            delete this->valueTail->operBefore->valueAfter;
+            valueTail->operBefore->valueAfter = this->valueTail;
+            valueTail->value->isMinus = true;
+            length--;
+        }
+
     }
-    void Add(SomeStruct* val)
+    void Add(ValueStruct* val)
     {
         ValueNode* temp = new ValueNode();
         temp->value = val;
-        temp->operBefore = valueTail->operAfter;
-        this->valueTail->isTail = false;
-        this->valueTail->operAfter->valueAfter = temp;
-        this->valueTail = temp;
-        this->valueTail->isTail = true;
+        if (valueTail)
+        {
+            temp->operBefore = valueTail->operAfter;
+            this->valueTail->isTail = false;
+            this->valueTail->operAfter->valueAfter = temp;
+            this->valueTail = temp;
+            this->valueTail->isTail = true;
+        }
+        else
+        {
+            valueTail = temp;
+            valueHead = valueTail;
+            
+            length -= 10;
+        }
         length++;
+        if (this->length >= 3 && this->valueTail->operBefore->compair("-", 1) && this->valueTail->operBefore->valueBefore->value->nameLength == 0)
+        {
+            this->valueTail->operBefore = this->valueTail->operBefore->valueBefore->operBefore;
+            delete this->valueTail->operBefore->valueAfter->operAfter;
+            delete this->valueTail->operBefore->valueAfter;
+            valueTail->operBefore->valueAfter = this->valueTail;
+            valueTail->value->isMinus = true;
+            length--;
+        }
     }
     void MakeExpression(char str[], int length)
     {
         for (int i = 0; i < length; i++)
         {
-            SomeStruct* variable = new SomeStruct();
+            ValueStruct* variable = new ValueStruct();
             OperatorNode* oper = new OperatorNode();
             variable->findValue(str, i, length);
             oper->FindOperator(str, i, length);
@@ -212,13 +277,16 @@ public:
             {
                 this->Add(variable);
             }
+            if (this->valueTail->value->isMinus)
+            {
+                this->valueTail->value->value *= (-1);
+            }
         }
     }
 private:
 
 
 };
-
 class MyStringBuilder
 {
     int sizeOfMemory = 8, currentSize = 1;
@@ -271,7 +339,6 @@ private:
         return str;
     }
 };
-
 class MyList
 {
     int sizeOfMemory = 1, currentSize = 0;
@@ -282,14 +349,6 @@ public:
     {
         int sizeOfMemory = 1, currentSize = 0;
         char** list = new char* [sizeOfMemory];
-    }
-    ~MyList()
-    {
-        for (int i = 0; i < this->Length(); i++)
-        {
-            delete[] list[i];
-        }
-        delete[] list;
     }
     void Add(char* str, int length)
     {
@@ -347,47 +406,293 @@ struct ExpressionArray
         for (int i = 0; i < length; i++)
         {
             Expression* ex = new Expression(list[i], list.ElementLength(i));
-            ex->MakeExpression(list[i], list.ElementLength(0));
+            ex->MakeExpression(list[i], list.ElementLength(i));
             arr[i] = ex;
         }
     }
-    void GiveMeAnAnswer()
+    void GiveMeAnAnswers()
     {
         for (int i = 0; i < this->length; i++)
         {
-            while (arr[i]->valueHead && arr[i])
+            if (!(this->arr[i]->valueHead->isHead && this->arr[i]->valueHead->isTail))
+            {
+                if (arr[i]->valueHead->value->hasValue)
+                {
+                    continue;
+                }
+                if (arr[i]->length < 0)
+                {
+                    AskValue(arr[i]->valueHead->value, i);
+                    continue;
+                }
+                ScaleByOperator(this->arr[i]->valueHead, i);
+            }
         }
 
     }
-    void Scale(Expression* ex)
+    void ScaleByOperator(ValueNode* val, int positionInArray)
     {
+        //если голова и хвост не совпадают и есть хотя бы один оператор
+        if (!(val->isHead && val->isTail) && val->operAfter)
+        {
+            //если мы в начале но ещё не конец
+            if (val->isHead && !val->operAfter->valueAfter->isTail)
+            {
+                    ScaleByOperator(val->operAfter->valueAfter, positionInArray);
+            }
+            //пока голва и хвост не совпадут
+            while (!(val->isTail || val->isHead))
+            {
+                if (val->operAfter->valueAfter->value->openBrackets != 0)
+                {
+                    ScaleByOperator(val->operAfter->valueAfter, positionInArray);
+                }
+                if (!val->operAfter->valueAfter->isTail)
+                {
+                    if ((val->operAfter->valueAfter->value->closeBrackets == 0) &&
+                        (val->operAfter->valueAfter->operAfter->compair("*", 1) || val->operAfter->valueAfter->operAfter->compair("*=", 2) || val->operAfter->valueAfter->operAfter->compair("/", 1)
+                            || val->operAfter->valueAfter->operAfter->compair("/=", 2) || val->operAfter->valueAfter->operAfter->compair("%", 1) || val->operAfter->valueAfter->operAfter->compair("%=", 2)))
+                    {
+                        ScaleByOperator(val->operAfter->valueAfter, positionInArray);
+                    }
+                }
+                Scale(val, positionInArray);
+            }
+            if (val->isHead && val->operAfter->valueAfter->isTail)
+            {
+                DefinitValueHead(val, positionInArray);
+            }
+        }
 
     }
+    void DefinitValueHead(ValueNode* val, int positionInArray)
+    {
+        if (!val->operAfter->valueAfter->value->hasValue)
+        {
+            FindValueInExpressionAndMakeIt(val->operAfter->valueAfter->value, positionInArray);
+        }
+        if (val->operAfter->compair("=",1))
+        {
+            val->value->value = val->operAfter->valueAfter->value->value;
+            delete val->operAfter->valueAfter;
+            delete val->operAfter;
+            arr[positionInArray]->valueTail = val;
+            arr[positionInArray]->length--;
+        }
+        else
+        {
+            if (!val->value->hasValue)
+            {
+                FindValueInExpressionAndMakeIt(val->value, positionInArray);
+            }
+            if (val->operAfter->compair("+=",2))
+            {
+                val->value->value += val->operAfter->valueAfter->value->value;
+                delete val->operAfter->valueAfter;
+                delete val->operAfter;
+                arr[positionInArray]->valueTail = val;
+                arr[positionInArray]->length--;
+            }
+            if (val->operAfter->compair("-=", 2))
+            {
+                val->value->value -= val->operAfter->valueAfter->value->value;
+                delete val->operAfter->valueAfter;
+                delete val->operAfter;
+                arr[positionInArray]->valueTail = val;
+                arr[positionInArray]->length--;
+            }
+            if (val->operAfter->compair("*=", 2))
+            {
+                val->value->value *= val->operAfter->valueAfter->value->value;
+                delete val->operAfter->valueAfter;
+                delete val->operAfter;
+                arr[positionInArray]->valueTail = val;
+                arr[positionInArray]->length--;
+            }
+            if (val->operAfter->compair("/=", 2))
+            {
+                val->value->value /= val->operAfter->valueAfter->value->value;
+                delete val->operAfter->valueAfter;
+                delete val->operAfter;
+                arr[positionInArray]->valueTail = val;
+                arr[positionInArray]->length--;
+            }
+            if (val->operAfter->compair("&=", 2))
+            {
+                val->value->value = val->value->value - (int)val->value->value + (int)val->value->value % (int)val->operAfter->valueAfter->value->value;
+                delete val->operAfter->valueAfter;
+                delete val->operAfter;
+                arr[positionInArray]->valueTail = val;
+                arr[positionInArray]->length--;
+            }
+        }
+        val->isTail = true;
+        arr[positionInArray]->valueTail->value->hasValue = true;
+    }
+    void Scale(ValueNode* value, int positionInArray)
+    {
+        if (!value->isTail)
+        {
+            //находим значения для операндов
+            if (!value->value->hasValue)
+            {
+                FindValueInExpressionAndMakeIt(value->value, positionInArray);
+            }
+            if (!value->operAfter->valueAfter->value->hasValue)
+            {
+                FindValueInExpressionAndMakeIt(value->operAfter->valueAfter->value, positionInArray);
+            }
 
+            if (value->operAfter->valueAfter->value->closeBrackets != 0)
+            {
+                if (value->value->openBrackets >= value->operAfter->valueAfter->value->closeBrackets)
+                {
+                    value->value->openBrackets -= value->operAfter->valueAfter->value->closeBrackets;
+                }
+                else
+                {
+                    value->operAfter->valueAfter->value->closeBrackets -= value->value->openBrackets;
+                    value->value->openBrackets = 0;
+                    value->value->closeBrackets = value->operAfter->valueAfter->value->closeBrackets;
+                }
+            }
+            if (value->operAfter->compair("+",1) || value->operAfter->compair("+=",2))
+            {
+                value->value->value += value->operAfter->valueAfter->value->value;
+            }
+            else if (value->operAfter->compair("-",1) || value->operAfter->compair("-=",2))
+            {
+                value->value->value -= value->operAfter->valueAfter->value->value;
+            }
+            else if (value->operAfter->compair("*",1) || value->operAfter->compair("*=",2))
+            {
+                value->value->value *= value->operAfter->valueAfter->value->value;
+            }
+            else if (value->operAfter->compair("/",1) || value->operAfter->compair("/=",2))
+            {
+                value->value->value /= value->operAfter->valueAfter->value->value;
+            }
+            else if (value->operAfter->compair("%",1) || value->operAfter->compair("%=",2))
+            {
+                value->value->value = value->value->value - (int)value->value->value + (int)value->value->value % (int)value->operAfter->valueAfter->value->value;
+            }
+            if (!value->operAfter->valueAfter->isTail)
+            {
+                DeleteNodeWithOperator(value,positionInArray);
+            }
+            else
+            {
+                value->isTail = true;
+                delete value->operAfter->valueAfter;
+                delete value->operAfter;
+            }
+        }
+    } 
+    void DeleteNodeWithOperator(ValueNode* value, int positionInArray)
+    {
+        value->operAfter = value->operAfter->valueAfter->operAfter;
+        delete value->operAfter->valueAfter->operBefore->valueBefore->operBefore;
+        delete value->operAfter->valueAfter->operBefore->valueBefore;
+        value->operAfter->valueAfter->operBefore = value->operAfter;
+        arr[positionInArray]->length--;
+    }
+    void AskValue(ValueStruct* value, int positionInArray)
+    {
+        std::cout << "В выражении: " << this->arr[positionInArray]->expressionAsString << std::endl << "для переменной \"" << 
+                    value->variableName  << "\" значение для выражения не определенно " << std::endl;
+        value->value = GetNumber(value->variableName);
+        if (value->isMinus)
+        {
+            value->value *= (-1.0);
+        }
+        value->hasValue = true;
+    }
+    void FindValueInExpressionAndMakeIt(ValueStruct* value,int positionInArray)
+    {                
+        for (int i = positionInArray +1; i < this->length; i++)
+        {
+            if (Compare(this->arr[i]->valueHead->value->variableName, this->arr[i]->valueHead->value->nameLength, value->variableName, value->nameLength) && this->arr[i]->valueHead->value->hasValue)
+            {
+                value->value = this->arr[i]->valueHead->value->value;
+                if (value->isMinus)
+                {
+                    value->value *= (-1.0);
+                }
+                this->arr[i]->valueHead->value->numberOfUsing++;
+                value->hasValue = true;
+                return;
+            }
+            else if (Compare(this->arr[i]->valueHead->value->variableName, this->arr[i]->valueHead->value->nameLength, value->variableName, value->nameLength))
+            {
+                ScaleByOperator(this->arr[i]->valueHead, i);
+                if (!arr[i]->valueHead->value->hasValue)
+                    AskValue(arr[i]->valueHead->value, i);
+                value->value = this->arr[i]->valueHead->value->value;
+                this->arr[i]->valueHead->value->numberOfUsing++;
+                value->hasValue = true;
+                return;
+            }
+        }
+        for (int i = positionInArray-1; i >= 0; i--)
+        {
+            if (Compare(this->arr[i]->valueHead->value->variableName, this->arr[i]->valueHead->value->nameLength, value->variableName, value->nameLength) && this->arr[i]->valueHead->value->hasValue)
+            {
+                value->value = this->arr[i]->valueHead->value->value;
+                if (value->isMinus)
+                {
+                    value->value *= (-1.0);
+                }
+                this->arr[i]->valueHead->value->numberOfUsing++;
+                value->hasValue = true;
+                return;
+            }
+            else if (Compare(this->arr[i]->valueHead->value->variableName, this->arr[i]->valueHead->value->nameLength, value->variableName, value->nameLength))
+            {
+                ScaleByOperator(this->arr[i]->valueHead, i);
+                if (!arr[i]->valueHead->value->hasValue)
+                    AskValue(arr[i]->valueHead->value, i);
+                value->value = this->arr[i]->valueHead->value->value;
+                this->arr[i]->valueHead->value->numberOfUsing++;
+                value->hasValue = true;
+                return;
+            }
+        }
+        AskValue(value, positionInArray);
+    }
+    void PrintAnswers()
+    {
+        for (int i = 0; i < this->length; i++)
+        {
+            if (this->arr[i]->valueHead->value->numberOfUsing == 0)
+            {
+                std::cout << "значение для выражения " << this->arr[i]->expressionAsString <<
+                    std::endl << "= " << this->arr[i]->valueHead->value->value << std::endl;
+            }
+        }
+    }
 };
 
 int main()
 {
-    char* test1 = new char [] {"exrp"};
+    setlocale(LC_ALL, "Rus");
+    std::cout << "Лабораторная работа №4 задание 5*" << std::endl << "Введите выражение для расчёта. Программа принимает строки как выражения. "
+        << std::endl << "пример: " << std::endl <<
+        "answer = a *(10 +b) - -5" << std::endl <<
+        "b = 4" << std::endl <<
+        "a = -1" << std::endl <<
+        "................." << std::endl << "Для завершения ввода, введите сочетание клавишь ctrl + z." << std::endl;
+    std::cout << "Введите выражение: " << std::endl;
+
 
 
     MyList arr;
     GetInput(arr);
     ExpressionArray *exArr = new ExpressionArray(arr);
+    exArr->GiveMeAnAnswers();
+    exArr->PrintAnswers();
 
-
-
-
-    for (int i = 0; i < arr.Length(); i++)
-    {
-        std::cout << exArr->arr[i]->expressionAsString << std::endl;
-    }
-
+    delete exArr;
 }
-
-  
-
-
 
 char* GetSubstring(char text[], int start, int size)
 {
@@ -399,7 +704,6 @@ char* GetSubstring(char text[], int start, int size)
     str[size] = '\0';
     return str;
 }
-
 bool IsNumber(const char str[], int length)
 {
     bool isFloat = false;
@@ -431,7 +735,6 @@ double GetNumFromString(const char str[])
     iss >> answ;
     return answ;
 }
-
 void GetInput(MyList & list)
 {
     
@@ -457,4 +760,39 @@ void GetInput(MyList & list)
             list.Add(str.Get(),str.Length());
         }
     }
+}
+double GetNumber(const char s[])
+{
+    double num;
+    while (true)
+    {
+        std::cout << s << " = ";
+        std::cin >> num;
+        if (std::cin.fail()) //проверяем, не заблокирован ли буфер ввода, если да, значит значения ввода юыло некоректным.
+        {
+            std::cin.clear(); //возвращаем буфер в обычный режим
+            std::cin.ignore(32767, '\n'); // очищаем буфер ввода
+            std::cout << "некоректное значение, попробуйте снова" << std::endl; //просим повторный ввод
+        }
+        else
+        {
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // очищаем буфер ввода от лишних символов, если таковые есть
+            return num; // выходим из функции.
+        }
+    }
+}
+bool Compare(const char st1[], int len1, const char st2[], int len2)
+{
+    if (len1 == len2)
+    {
+        for (int i = 0; i < len1; i++)
+        {
+            if (st1[i] != st2[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
 }
