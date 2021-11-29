@@ -440,7 +440,7 @@ struct ExpressionArray
             {
                     ScaleByOperator(val->operAfter->valueAfter, positionInArray);
             }
-            //пока голва и хвост не совпадут
+            //пока не голва или хвост 
             while (!(val->isTail || val->isHead))
             {
                 if (val->operAfter->valueAfter->value->openBrackets != 0)
@@ -456,7 +456,10 @@ struct ExpressionArray
                         ScaleByOperator(val->operAfter->valueAfter, positionInArray);
                     }
                 }
-                Scale(val, positionInArray);
+                if (!(val->value->closeBrackets != 0))
+                {
+                    Scale(val, positionInArray);
+                }
             }
             if (val->isHead && val->operAfter->valueAfter->isTail)
             {
@@ -531,6 +534,7 @@ struct ExpressionArray
     }
     void Scale(ValueNode* value, int positionInArray)
     {
+        bool isBrackets = false;
         if (!value->isTail)
         {
             //находим значения для операндов
@@ -545,7 +549,7 @@ struct ExpressionArray
 
             if (value->operAfter->valueAfter->value->closeBrackets != 0)
             {
-                if (value->value->openBrackets >= value->operAfter->valueAfter->value->closeBrackets)
+                if (value->value->openBrackets > value->operAfter->valueAfter->value->closeBrackets)
                 {
                     value->value->openBrackets -= value->operAfter->valueAfter->value->closeBrackets;
                 }
@@ -554,6 +558,7 @@ struct ExpressionArray
                     value->operAfter->valueAfter->value->closeBrackets -= value->value->openBrackets;
                     value->value->openBrackets = 0;
                     value->value->closeBrackets = value->operAfter->valueAfter->value->closeBrackets;
+                    isBrackets = true;
                 }
             }
             if (value->operAfter->compair("+",1) || value->operAfter->compair("+=",2))
@@ -586,6 +591,10 @@ struct ExpressionArray
                 delete value->operAfter->valueAfter;
                 delete value->operAfter;
             }
+            if (isBrackets && !value->operBefore->valueBefore->isHead)
+            {
+                ScaleByOperator(value->operBefore->valueBefore, positionInArray);
+            }
         }
     } 
     void DeleteNodeWithOperator(ValueNode* value, int positionInArray)
@@ -594,6 +603,7 @@ struct ExpressionArray
         delete value->operAfter->valueAfter->operBefore->valueBefore->operBefore;
         delete value->operAfter->valueAfter->operBefore->valueBefore;
         value->operAfter->valueAfter->operBefore = value->operAfter;
+        value->operAfter->valueBefore = value;
         arr[positionInArray]->length--;
     }
     void AskValue(ValueStruct* value, int positionInArray)
