@@ -6,11 +6,8 @@
 //Предусмотреть возможность вывода любой переменной на экран.Если есть выражения, переменные которых не определены, то пользователю выводится это выражение и предлагается ввести все необходимые значения переменных с консоли.
 
 //ИДБ-21-12 Порядин Вячеслав Сергеевич. 
-
 #include <iostream>
 #include <sstream>
-
-
 
 struct ValueStruct;
 struct ValueNode;
@@ -178,9 +175,7 @@ struct OperatorNode
     }
 };
 class Expression
-{
-    
-    
+{   
 public:
     int length = 0;
     char* expressionAsString;
@@ -447,7 +442,7 @@ struct ExpressionArray
                 {
                     ScaleByOperator(val->operAfter->valueAfter, positionInArray);
                 }
-                if (!val->operAfter->valueAfter->isTail)
+                if (!val->isTail    && !val->operAfter->valueAfter->isTail)
                 {
                     if ((val->operAfter->valueAfter->value->closeBrackets == 0) &&
                         (val->operAfter->valueAfter->operAfter->compair("*", 1) || val->operAfter->valueAfter->operAfter->compair("*=", 2) || val->operAfter->valueAfter->operAfter->compair("/", 1)
@@ -461,7 +456,7 @@ struct ExpressionArray
                     Scale(val, positionInArray);
                 }
             }
-            if (val->isHead && val->operAfter->valueAfter->isTail)
+            if (val->isHead && !val->isTail && val->operAfter->valueAfter->isTail)
             {
                 DefinitValueHead(val, positionInArray);
             }
